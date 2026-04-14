@@ -1,4 +1,4 @@
-FROM golang:alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
 
 RUN apk update --no-cache && apk upgrade --no-cache \
     && apk add --no-cache mailcap git tzdata ca-certificates
@@ -22,6 +22,5 @@ COPY --from=builder /app/reception /reception
 USER nonroot:nonroot
 
 EXPOSE 8000
-EXPOSE 8080
 
 ENTRYPOINT ["/reception"]
