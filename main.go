@@ -34,6 +34,7 @@ var (
 	removeCommand     bool
 	enableHealthCheck bool
 	token             string
+	guildID           string
 	s                 *discordgo.Session
 )
 
@@ -48,6 +49,7 @@ func init() {
 	removeCommand = utils.StringToBool(utils.GetEnv("REM_CMD", "true"))
 	enableHealthCheck = utils.StringToBool(utils.GetEnv("HEALTHCHECK", "false"))
 	token = utils.GetEnv("TOKEN", "")
+	guildID = utils.GetEnv("GUILD_ID", "")
 
 	s, err = discordgo.New("Bot " + token)
 	if err != nil {
@@ -65,6 +67,14 @@ func main() {
 
 	s.AddHandler(e.Ready)
 
+	// register intent
+	s.Identify.Intents = discordgo.IntentsGuilds |
+		discordgo.IntentsGuildMembers |
+		discordgo.IntentsGuildPresences |
+		discordgo.IntentsGuildMessages |
+		discordgo.IntentsMessageContent |
+		discordgo.IntentsGuildMessageReactions
+
 	err := s.Open()
 
 	if err != nil {
@@ -74,8 +84,8 @@ func main() {
 	log.Println("Registering commands: ")
 	registeredCommands := make([]*discordgo.ApplicationCommand, len(commands.Infos))
 	for i, v := range commands.Infos {
-		log.Printf("Registering '%s'", v.Name)
-		cmd, err := s.ApplicationCommandCreate(s.State.User.ID, "", v)
+		log.Printf("Registering '%s' (Guild: '%s')", v.Name, guildID)
+		cmd, err := s.ApplicationCommandCreate(s.State.User.ID, guildID, v)
 		if err != nil {
 			log.Panicf("Error registering '%v': %v", v.Name, err)
 		}
@@ -86,6 +96,10 @@ func main() {
 
 	s.AddHandler(e.GuildJoin)
 	s.AddHandler(e.GuildDelete)
+	s.AddHandler(e.GuildMemberAdd)
+	s.AddHandler(e.MessageCreate)
+	s.AddHandler(e.MessageReactionAdd)
+	s.AddHandler(e.MessageReactionRemove)
 
 	c := commands.NewStoreCtx(gs, ps)
 	ch := c.GetHandlers()
@@ -106,12 +120,10 @@ func main() {
 			}
 		})
 
-		sv := http.Server{
+		sv := &http.Server{
 			Addr:    ":8000",
 			Handler: mux,
 		}
-
-		sv.ListenAndServe()
 
 		go func() {
 			log.Println("Starting Healthcheck server on :8000")
@@ -132,8 +144,8 @@ func main() {
 		log.Println("Removing commands:")
 
 		for _, v := range registeredCommands {
-			log.Printf("Removing '%s'", v.Name)
-			err := s.ApplicationCommandDelete(s.State.User.ID, "", v.ID)
+			log.Printf("Removing '%s' (Guild: '%s')", v.Name, guildID)
+			err := s.ApplicationCommandDelete(s.State.User.ID, guildID, v.ID)
 			if err != nil {
 				log.Panicf("Cannot remove '%v': %v", v.Name, err)
 			}

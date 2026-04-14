@@ -33,12 +33,20 @@ func NewStoreCtx(gs *store.GuildsStore, ps *store.PendingStore) *StoreCtx {
 
 func (c *StoreCtx) GetHandlers() map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	return map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-		"ping":          c.PingCommandHandler,
-		"reactionroles": c.ReactionRolesCommandHandler,
+		Ping.Name:          c.PingCommandHandler,
+		ReactionRoles.Name: c.ReactionRolesCommandHandler,
+		Welcome.Name:       c.WelcomeCommandHandler,
+		TempC.Name:         c.TempCCommandHandler,
+		CreateCTemp.Name:   c.CreateCTempCommandHandler,
+		ListCTemp.Name:     c.ListCTempCommandHandler,
 	}
 }
 
 var Infos = []*discordgo.ApplicationCommand{
 	Ping,
 	ReactionRoles,
+	Welcome,
+	TempC,
+	CreateCTemp,
+	ListCTemp,
 }

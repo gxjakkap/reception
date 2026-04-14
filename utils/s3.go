@@ -42,7 +42,6 @@ func NewS3Client() (*S3Client, error) {
 	secretKey := GetEnv("S3_SECRET_KEY", "")
 	bucketName := GetEnv("S3_BUCKET_NAME", "")
 	region := GetEnv("S3_REGION", "auto")
-	publicURL := GetEnv("S3_PUBLIC_URL", "")
 
 	if endpoint == "" || accessKey == "" || secretKey == "" || bucketName == "" {
 		return nil, fmt.Errorf("missing required S3 environment variables")
@@ -66,7 +65,6 @@ func NewS3Client() (*S3Client, error) {
 	return &S3Client{
 		client:     client,
 		bucketName: bucketName,
-		publicURL:  publicURL,
 	}, nil
 }
 
@@ -81,7 +79,7 @@ func (s *S3Client) UploadFile(ctx context.Context, key string, file io.Reader, c
 		return "", fmt.Errorf("failed to upload file: %w", err)
 	}
 
-	return s.GetFileUrl(key), nil
+	return s.GetFileKey(key), nil
 }
 
 func (s *S3Client) DownloadFile(ctx context.Context, key string) (io.ReadCloser, error) {
@@ -96,9 +94,6 @@ func (s *S3Client) DownloadFile(ctx context.Context, key string) (io.ReadCloser,
 	return out.Body, nil
 }
 
-func (s *S3Client) GetFileUrl(key string) string {
-	if s.publicURL != "" {
-		return fmt.Sprintf("%s/%s", s.publicURL, key)
-	}
-	return key
+func (s *S3Client) GetFileKey(key string) string {
+	return fmt.Sprintf("%s/%s", s.bucketName, key)
 }

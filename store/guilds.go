@@ -23,16 +23,20 @@ import (
 	"github.com/gxjakkap/reception/models"
 	"github.com/gxjakkap/reception/utils"
 	"gorm.io/gorm"
+	"sync"
 )
 
 type GuildsStore struct {
-	db *gorm.DB
+	db      *gorm.DB
+	rrCache sync.Map // map[string]struct{} where key is MessageID
 }
 
 func NewGuildsStore(db *gorm.DB) *GuildsStore {
-	return &GuildsStore{
+	s := &GuildsStore{
 		db: db,
 	}
+	s.LoadReactionRoleCache()
+	return s
 }
 
 func (s *GuildsStore) Create(g *models.Guilds) error {
@@ -43,7 +47,7 @@ func (s *GuildsStore) Create(g *models.Guilds) error {
 }
 
 func (s *GuildsStore) Delete(gid string) error {
-	if err := s.db.Where("guild_id = ?", gid).Delete(&models.Guilds{}).Error; err != nil {
+	if err := s.db.Where("id = ?", gid).Delete(&models.Guilds{}).Error; err != nil {
 		return err
 	}
 	return nil
@@ -53,12 +57,37 @@ func (s *GuildsStore) AddReactionRole(gid string, rr *models.ReactionRoles) erro
 	if err := s.db.Model(&models.Guilds{ID: gid}).Association("ReactionRoles").Append(rr); err != nil {
 		return err
 	}
+	s.rrCache.Store(rr.MessageID, struct{}{})
+	return nil
+}
+
+func (s *GuildsStore) GetReactionRolesFromMessage(msgid string) ([]models.ReactionRoles, error) {
+	var rrs []models.ReactionRoles
+	err := s.db.Where("message_id = ?", msgid).Find(&rrs).Error
+	return rrs, err
+}
+
+func (s *GuildsStore) IsReactionRoleMessage(msgid string) bool {
+	_, ok := s.rrCache.Load(msgid)
+	return ok
+}
+
+func (s *GuildsStore) LoadReactionRoleCache() error {
+	var msgIDs []string
+	err := s.db.Model(&models.ReactionRoles{}).Distinct("message_id").Pluck("message_id", &msgIDs).Error
+	if err != nil {
+		return err
+	}
+
+	for _, id := range msgIDs {
+		s.rrCache.Store(id, struct{}{})
+	}
 	return nil
 }
 
 func (s *GuildsStore) GetSettings(gid string) (models.GuildSettings, error) {
 	var g models.Guilds
-	err := s.db.Where("guild_id = ?", gid).First(&g).Error
+	err := s.db.Where("id = ?", gid).First(&g).Error
 	if err != nil {
 		return models.GuildSettings{}, err
 	}
@@ -85,7 +114,7 @@ func (s *GuildsStore) GetWelcomeConfig(gid string) (models.WelcomeConfig, error)
 
 func (s *GuildsStore) ToggleWelcomeMessage(gid string) (bool, error) {
 	var g models.Guilds
-	if err := s.db.Where("guild_id = ?", gid).First(&g).Error; err != nil {
+	if err := s.db.Where("id = ?", gid).First(&g).Error; err != nil {
 		return false, err
 	}
 
@@ -162,7 +191,7 @@ func (s *GuildsStore) GetCurrentWelcomeImageBackground(gid string) (string, erro
 
 func (s *GuildsStore) GetGuildCategoryTemplate(gid string, idx int) ([]utils.CategoryTemplateChannel, string, error) {
 	var g models.Guilds
-	err := s.db.Where("guild_id = ?", gid).First(&g).Error
+	err := s.db.Where("id = ?", gid).First(&g).Error
 	if err != nil {
 		return nil, "", err
 	}
@@ -174,6 +203,10 @@ func (s *GuildsStore) GetGuildCategoryTemplate(gid string, idx int) ([]utils.Cat
 		return nil, "", err
 	}
 
+	if idx < 0 || idx >= len(sett.CategoryTemplate) {
+		return nil, "", fmt.Errorf("category template index out of bounds")
+	}
+
 	catTemp := utils.ParseCTemp(sett.CategoryTemplate[idx].Template)
 
 	return catTemp, sett.CategoryTemplate[idx].Name, nil
@@ -181,7 +214,7 @@ func (s *GuildsStore) GetGuildCategoryTemplate(gid string, idx int) ([]utils.Cat
 
 func (s *GuildsStore) SetGuildCategoryTemplate(gid string, name string, catTemp string) error {
 	var g models.Guilds
-	err := s.db.Where("guild_id = ?", gid).First(&g).Error
+	err := s.db.Where("id = ?", gid).First(&g).Error
 	if err != nil {
 		return err
 	}
@@ -208,7 +241,7 @@ func (s *GuildsStore) SetGuildCategoryTemplate(gid string, name string, catTemp 
 
 func (s *GuildsStore) ListGuildCategoryTemplates(gid string) ([]models.CategoryTemplate, error) {
 	var g models.Guilds
-	err := s.db.Where("guild_id = ?", gid).First(&g).Error
+	err := s.db.Where("id = ?", gid).First(&g).Error
 	if err != nil {
 		return nil, err
 	}

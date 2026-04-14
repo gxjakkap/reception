@@ -63,7 +63,7 @@ func (c *FollowUpsCtx) SetEmbedMessage(s *discordgo.Session, m *discordgo.Messag
 	}
 
 	rep := &discordgo.MessageSend{
-		Content:   "I have sent the message you provided to <%v>.\n\nNext, please input each role and corresponding discord emoji by mentioning a role followed by the emoji. e.g.:\n'@role' :book:\nWhen finished, type `end`.",
+		Content:   "I have sent the message you provided to <#%v>.\n\nNext, please input each role and corresponding discord emoji by mentioning a role followed by the emoji. e.g.:\n'@role' :book:\nWhen finished, type `end`.",
 		Reference: m.MessageReference,
 	}
 
@@ -71,7 +71,7 @@ func (c *FollowUpsCtx) SetEmbedMessage(s *discordgo.Session, m *discordgo.Messag
 
 	npd := &RRSetEmbedMessageOrAddRolesOrFinishData{
 		ChannelID:  data.ChannelID,
-		MessageID:  t.MessageReference.MessageID,
+		MessageID:  t.ID,
 		AddedEmoji: []string{},
 		AddedRoles: []string{},
 	}
@@ -89,7 +89,7 @@ func (c *FollowUpsCtx) SetEmbedMessage(s *discordgo.Session, m *discordgo.Messag
 
 	nPen := &models.Pending{
 		GuildID:   m.GuildID,
-		UserID:    m.Member.User.ID,
+		UserID:    m.Author.ID,
 		Type:      "rr_set_embed_message",
 		Next:      "rr_add_roles_or_finish",
 		Data:      npdb,

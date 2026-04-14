@@ -29,18 +29,5 @@ services:
       - --dir
       - file:///migrations
 
-  bot:
-    image: ghcr.io/gxjakkap/reception:main
-    restart: always
-    depends_on:
-      atlas:
-        condition: service_completed_successfully
-    env_file:
-      - .env
-    environment:
-      - PG_HOST=db
-    ports:
-      - "8000:8000"
-
 volumes:
   db_data:

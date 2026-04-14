@@ -42,3 +42,22 @@ func ExtractRoleID(roleStr string) string {
 
 	return ""
 }
+
+var customEmojiRegex = regexp.MustCompile(`^<a?:(\w+):(\d+)>$`)
+
+func NormalizeEmoji(emojiStr string) string {
+	emojiStr = strings.TrimSpace(emojiStr)
+
+	matches := customEmojiRegex.FindStringSubmatch(emojiStr)
+	if len(matches) == 3 {
+		// Return name:id format which matches discordgo APIName()
+		return matches[1] + ":" + matches[2]
+	}
+
+	// For Unicode emojis, it's already the literal character
+	return emojiStr
+}
+
+func StringPtr(s string) *string {
+	return &s
+}

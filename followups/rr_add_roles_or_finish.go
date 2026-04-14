@@ -74,7 +74,7 @@ func (c *FollowUpsCtx) AddRolesOrFinish(s *discordgo.Session, m *discordgo.Messa
 			})
 			c.ps.Create(&models.Pending{
 				GuildID:   m.GuildID,
-				UserID:    m.Member.User.ID,
+				UserID:    m.Author.ID,
 				Type:      "rr_add_roles_or_finish",
 				Next:      "rr_add_roles_or_finish",
 				Data:      pen.Data,
@@ -85,7 +85,7 @@ func (c *FollowUpsCtx) AddRolesOrFinish(s *discordgo.Session, m *discordgo.Messa
 		}
 
 		roleStr := parts[0]
-		emojiStr := parts[1]
+		emojiStr := utils.NormalizeEmoji(parts[1])
 
 		roleID := utils.ExtractRoleID(roleStr)
 		if roleID == "" {
@@ -95,7 +95,7 @@ func (c *FollowUpsCtx) AddRolesOrFinish(s *discordgo.Session, m *discordgo.Messa
 			})
 			c.ps.Create(&models.Pending{
 				GuildID:   m.GuildID,
-				UserID:    m.Member.User.ID,
+				UserID:    m.Author.ID,
 				Type:      "rr_add_roles_or_finish",
 				Next:      "rr_add_roles_or_finish",
 				Data:      pen.Data,
@@ -134,11 +134,11 @@ func (c *FollowUpsCtx) AddRolesOrFinish(s *discordgo.Session, m *discordgo.Messa
 		return
 	}
 
-	s.MessageReactionAdd(m.ChannelID, m.MessageReference.MessageID, "✅")
+	s.MessageReactionAdd(m.ChannelID, m.ID, "✅")
 
 	c.ps.Create(&models.Pending{
 		GuildID:   m.GuildID,
-		UserID:    m.Member.User.ID,
+		UserID:    m.Author.ID,
 		Type:      "rr_add_roles_or_finish",
 		Next:      "rr_add_roles_or_finish",
 		Data:      datab,

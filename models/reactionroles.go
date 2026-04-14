@@ -17,7 +17,7 @@ package models
 type ReactionRoles struct {
 	ID        uint   `gorm:"primaryKey"`
 	GuildID   string `gorm:"index;not null"`
-	MessageID string `gorm:"index;not null"`
-	Emoji     string `gorm:"not null"`
+	MessageID string `gorm:"index:idx_msg_emoji;not null"`
+	Emoji     string `gorm:"index:idx_msg_emoji;not null"`
 	RoleID    string `gorm:"not null"`
 }

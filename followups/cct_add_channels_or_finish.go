@@ -65,7 +65,7 @@ func (c *FollowUpsCtx) CCTAddChannels(s *discordgo.Session, m *discordgo.Message
 			Content:   "Template added successfully!",
 			Reference: m.MessageReference,
 		})
-		s.MessageReactionAdd(m.ChannelID, m.MessageReference.MessageID, "✅")
+		s.MessageReactionAdd(m.ChannelID, m.ID, "✅")
 		return
 	}
 
@@ -79,14 +79,14 @@ func (c *FollowUpsCtx) CCTAddChannels(s *discordgo.Session, m *discordgo.Message
 		// Renew pending so user can try again
 		c.ps.Create(&models.Pending{
 			GuildID:   m.GuildID,
-			UserID:    m.Member.User.ID,
+			UserID:    m.Author.ID,
 			Type:      "cct_add_channels_or_finish",
 			Next:      "cct_add_channels_or_finish",
 			Data:      pen.Data,
 			CreatedAt: time.Now(),
 			ExpiredAt: time.Now().Add(time.Minute * 5),
 		})
-		s.MessageReactionAdd(m.ChannelID, m.MessageReference.MessageID, "❌")
+		s.MessageReactionAdd(m.ChannelID, m.ID, "❌")
 		return
 	}
 
@@ -104,14 +104,14 @@ func (c *FollowUpsCtx) CCTAddChannels(s *discordgo.Session, m *discordgo.Message
 		})
 		c.ps.Create(&models.Pending{
 			GuildID:   m.GuildID,
-			UserID:    m.Member.User.ID,
+			UserID:    m.Author.ID,
 			Type:      "cct_add_channels_or_finish",
 			Next:      "cct_add_channels_or_finish",
 			Data:      pen.Data,
 			CreatedAt: time.Now(),
 			ExpiredAt: time.Now().Add(time.Minute * 5),
 		})
-		s.MessageReactionAdd(m.ChannelID, m.MessageReference.MessageID, "❌")
+		s.MessageReactionAdd(m.ChannelID, m.ID, "❌")
 		return
 	}
 
@@ -127,11 +127,11 @@ func (c *FollowUpsCtx) CCTAddChannels(s *discordgo.Session, m *discordgo.Message
 		return
 	}
 
-	s.MessageReactionAdd(m.ChannelID, m.MessageReference.MessageID, "✅")
+	s.MessageReactionAdd(m.ChannelID, m.ID, "✅")
 
 	c.ps.Create(&models.Pending{
 		GuildID:   m.GuildID,
-		UserID:    m.Member.User.ID,
+		UserID:    m.Author.ID,
 		Type:      "cct_add_channels_or_finish",
 		Next:      "cct_add_channels_or_finish",
 		Data:      datab,

@@ -30,16 +30,17 @@ func (c *EventContext) Interactions(s *discordgo.Session, i *discordgo.Interacti
 	}
 
 	var lp string
+	un := "Unknown"
+	if i.Member != nil && i.Member.User != nil {
+		un = i.Member.User.Username
+	} else if i.User != nil {
+		un = i.User.Username
+	}
+
 	if i.GuildID == "" {
-		lp = fmt.Sprintf("usr: %s", i.User.Username)
+		lp = fmt.Sprintf("usr: %s", un)
 	} else {
 		gn := utils.GetGuildNameFromState(s, i.GuildID)
-
-		un := "Unknown"
-		if i.Member != nil && i.Member.User != nil {
-			un = i.Member.User.Username
-		}
-
 		lp = fmt.Sprintf("src: %s (%s) usr: %s", gn, i.GuildID, un)
 	}
 

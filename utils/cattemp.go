@@ -69,6 +69,8 @@ func ParseCTemp(s string) []CategoryTemplateChannel {
 			cType = discordgo.ChannelTypeGuildStageVoice
 		case "forum":
 			cType = discordgo.ChannelTypeGuildForum
+		case "media":
+			cType = discordgo.ChannelTypeGuildMedia
 		default:
 			// Unknown type, skip or handle error. We will skip.
 			continue
@@ -83,9 +85,31 @@ func ParseCTemp(s string) []CategoryTemplateChannel {
 	return channels
 }
 
+func ChannelTypeToString(t *discordgo.ChannelType) string {
+	if t == nil {
+		return "unknown"
+	}
+	switch *t {
+	case discordgo.ChannelTypeGuildText:
+		return "text"
+	case discordgo.ChannelTypeGuildVoice:
+		return "voice"
+	case discordgo.ChannelTypeGuildNews:
+		return "announcement"
+	case discordgo.ChannelTypeGuildStageVoice:
+		return "stage"
+	case discordgo.ChannelTypeGuildForum:
+		return "forum"
+	case discordgo.ChannelTypeGuildMedia:
+		return "media"
+	default:
+		return "unknown"
+	}
+}
+
 func ConcatTemplate(prev string, new string) string {
 	if prev == "" {
 		return new
 	}
-	return prev + new + ";"
+	return prev + ";" + new
 }

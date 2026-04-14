@@ -19,6 +19,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gxjakkap/reception/followups"
+	"github.com/gxjakkap/reception/utils"
 )
 
 func (c *EventContext) MessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -31,6 +32,8 @@ func (c *EventContext) MessageCreate(s *discordgo.Session, m *discordgo.MessageC
 		return
 	}
 
+	log.Printf("checkpoint: new msg event from %v (%v) in %v (%v): %v", m.Author.Username, m.Author.ID, utils.GetGuildNameFromState(s, m.GuildID), m.GuildID, m.Content)
+
 	// if user have pending interaction
 	pen, err := c.ps.UserInPendingList(m.Author.ID)
 
@@ -42,6 +45,8 @@ func (c *EventContext) MessageCreate(s *discordgo.Session, m *discordgo.MessageC
 	// user have pending interaction
 	if pen {
 		inter, err := c.ps.GetPendingByUser(m.Author.ID)
+
+		log.Printf("checkpoint: check for pending interaction for %v (%v): %v", m.Author.Username, m.Author.ID, inter)
 
 		if err != nil {
 			log.Printf("error getting pending interaction for user '%v' (%v): %v", m.Author.Username, m.Author.ID, err)

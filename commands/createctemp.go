@@ -58,10 +58,10 @@ func (sc *StoreCtx) CreateCTempCommandHandler(s *discordgo.Session, i *discordgo
 		return
 	}
 
-	p, err := s.State.UserChannelPermissions(i.User.ID, i.ChannelID)
+	p, err := s.State.UserChannelPermissions(i.Member.User.ID, i.ChannelID)
 
 	if err != nil {
-		log.Printf("err while checking permission of %v (%v) in %v (%v) for cct_init: %v", i.User.Username, i.User.ID, utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, err)
+		log.Printf("err while checking permission of %v (%v) in %v (%v) for cct_init: %v", i.Member.User.Username, i.Member.User.ID, utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -97,7 +97,7 @@ func (sc *StoreCtx) CreateCTempCommandHandler(s *discordgo.Session, i *discordgo
 	datab, err := json.Marshal(data)
 
 	if err != nil {
-		log.Printf("err while marshaling data for %v (%v) in guild %v (%v) in cct_init: %v", i.User.Username, i.User.ID, utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, err)
+		log.Printf("err while marshaling data for %v (%v) in guild %v (%v) in cct_init: %v", i.Member.User.Username, i.Member.User.ID, utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{

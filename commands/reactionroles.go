@@ -56,10 +56,10 @@ func (sc *StoreCtx) ReactionRolesCommandHandler(s *discordgo.Session, i *discord
 		return
 	}
 
-	p, err := s.State.UserChannelPermissions(i.User.ID, i.ChannelID)
+	p, err := s.State.UserChannelPermissions(i.Member.User.ID, i.ChannelID)
 
 	if err != nil {
-		log.Printf("err while checking permission of %v (%v) in %v (%v) for rr_init: %v", i.User.Username, i.User.ID, utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, err)
+		log.Printf("err while checking permission of %v (%v) in %v (%v) for rr_init: %v", i.Member.User.Username, i.Member.User.ID, utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -79,12 +79,14 @@ func (sc *StoreCtx) ReactionRolesCommandHandler(s *discordgo.Session, i *discord
 		return
 	}
 
+	targetCh := i.ApplicationCommandData().GetOption("channel").ChannelValue(s).ID
+
 	datab, err := json.Marshal(&RRInitPendingData{
-		ChannelID: i.ChannelID,
+		ChannelID: targetCh,
 	})
 
 	if err != nil {
-		log.Printf("err while marshalling data for %v (%v) in guild %v (%v) in rr_init: %v", i.User.Username, i.User.ID, utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, err)
+		log.Printf("err while marshalling data for %v (%v) in guild %v (%v) in rr_init: %v", i.Member.User.Username, i.Member.User.ID, utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -138,7 +140,7 @@ func (sc *StoreCtx) ReactionRolesCommandHandler(s *discordgo.Session, i *discord
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf("You are creating reaction roles in <%v>. Type in message to attach the reaction role message down below. (Expires in 5 minutes)", i.ApplicationCommandData().GetOption("channel")),
+			Content: fmt.Sprintf("You are creating reaction roles in <#%v>. Type in message to attach the reaction role message down below. (Expires in 5 minutes)", targetCh),
 		},
 	})
 }

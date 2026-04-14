@@ -19,8 +19,10 @@
 package commands
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"path"
@@ -39,115 +41,102 @@ var Welcome = &discordgo.ApplicationCommand{
 			Type:        discordgo.ApplicationCommandOptionSubCommand,
 		},
 		{
-			Name:        "settings",
-			Description: "Query or change settings for welcome message.",
+			Name:        "channel",
+			Description: "Set the channel for welcome messages.",
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Name:        "chan",
+					Description: "The channel.",
+					Type:        discordgo.ApplicationCommandOptionChannel,
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:        "message",
+			Description: "Set the welcome message text. Use {user} for mention and {server} for guild name.",
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Name:        "msg",
+					Description: "The message text.",
+					Type:        discordgo.ApplicationCommandOptionString,
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:        "include_image",
+			Description: "Toggle whether to include a generated image in the welcome message.",
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Name:        "inc",
+					Description: "Include image?",
+					Type:        discordgo.ApplicationCommandOptionBoolean,
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:        "textcolor",
+			Description: "Get or set HEX value for text in the welcome message image.",
 			Type:        discordgo.ApplicationCommandOptionSubCommandGroup,
 			Options: []*discordgo.ApplicationCommandOption{
 				{
-					Name:        "channel",
-					Description: "Set the channel for welcome messages.",
+					Name:        "get",
+					Description: "Get current HEX value.",
 					Type:        discordgo.ApplicationCommandOptionSubCommand,
-					Options: []*discordgo.ApplicationCommandOption{
-						{
-							Name:        "chan",
-							Description: "The channel.",
-							Type:        discordgo.ApplicationCommandOptionChannel,
-							Required:    true,
-						},
-					},
 				},
 				{
-					Name:        "message",
-					Description: "Set the welcome message text. Use {user} for mention and {server} for guild name.",
+					Name:        "set",
+					Description: "Set new HEX value.",
 					Type:        discordgo.ApplicationCommandOptionSubCommand,
 					Options: []*discordgo.ApplicationCommandOption{
 						{
-							Name:        "msg",
-							Description: "The message text.",
+							Name:        "value",
+							Description: "HEX value for text in the welcome message image.",
 							Type:        discordgo.ApplicationCommandOptionString,
 							Required:    true,
 						},
 					},
 				},
+			},
+		},
+		{
+			Name:        "background",
+			Description: "Get or set custom background image for the welcome message image.",
+			Type:        discordgo.ApplicationCommandOptionSubCommandGroup,
+			Options: []*discordgo.ApplicationCommandOption{
 				{
-					Name:        "include_image",
-					Description: "Toggle whether to include a generated image in the welcome message.",
+					Name:        "get",
+					Description: "Get current background image.",
 					Type:        discordgo.ApplicationCommandOptionSubCommand,
+				},
+				{
+					Name:        "set-image",
+					Type:        discordgo.ApplicationCommandOptionSubCommand,
+					Description: "Set new background image using attachment.",
 					Options: []*discordgo.ApplicationCommandOption{
 						{
-							Name:        "inc",
-							Description: "Include image?",
-							Type:        discordgo.ApplicationCommandOptionBoolean,
+							Name:        "img",
+							Description: "The image attachment.",
+							Type:        discordgo.ApplicationCommandOptionAttachment,
 							Required:    true,
 						},
 					},
 				},
 				{
-					Name:        "textcolor",
-					Description: "Get or set HEX value for text in the welcome message image.",
-					Type:        discordgo.ApplicationCommandOptionSubCommandGroup,
+					Name:        "set-link",
+					Type:        discordgo.ApplicationCommandOptionSubCommand,
+					Description: "Set new background image using URL.",
 					Options: []*discordgo.ApplicationCommandOption{
 						{
-							Name:        "get",
-							Description: "Get current HEX value.",
-							Type:        discordgo.ApplicationCommandOptionSubCommand,
-						},
-						{
-							Name:        "set",
-							Description: "Set new HEX value.",
-							Type:        discordgo.ApplicationCommandOptionSubCommand,
-							Options: []*discordgo.ApplicationCommandOption{
-								{
-									Name:        "value",
-									Description: "HEX value for text in the welcome message image.",
-									Type:        discordgo.ApplicationCommandOptionString,
-									Required:    true,
-								},
-							},
-						},
-					},
-				},
-				{
-					Name:        "background",
-					Description: "Get or set custom background image for the welcome message image.",
-					Type:        discordgo.ApplicationCommandOptionSubCommandGroup,
-					Options: []*discordgo.ApplicationCommandOption{
-						{
-							Name:        "get",
-							Description: "Get current background image.",
-							Type:        discordgo.ApplicationCommandOptionSubCommand,
-						},
-						{
-							Name:        "set",
-							Description: "Set new background image.",
-							Type:        discordgo.ApplicationCommandOptionSubCommandGroup,
-							Options: []*discordgo.ApplicationCommandOption{
-								{
-									Name:        "image",
-									Type:        discordgo.ApplicationCommandOptionSubCommand,
-									Description: "Set new background image using attachment.",
-									Options: []*discordgo.ApplicationCommandOption{
-										{
-											Name:     "img",
-											Type:     discordgo.ApplicationCommandOptionAttachment,
-											Required: true,
-										},
-									},
-								},
-								{
-									Name:        "imagelink",
-									Type:        discordgo.ApplicationCommandOptionSubCommand,
-									Description: "Set new background image using URL.",
-									Options: []*discordgo.ApplicationCommandOption{
-										{
-											Name:        "link",
-											Description: "URL of the image.",
-											Type:        discordgo.ApplicationCommandOptionString,
-											Required:    true,
-										},
-									},
-								},
-							},
+							Name:        "link",
+							Description: "URL of the image.",
+							Type:        discordgo.ApplicationCommandOptionString,
+							Required:    true,
 						},
 					},
 				},
@@ -167,10 +156,10 @@ func (sc *StoreCtx) WelcomeCommandHandler(s *discordgo.Session, i *discordgo.Int
 		return
 	}
 
-	p, err := s.State.UserChannelPermissions(i.User.ID, i.ChannelID)
+	p, err := s.State.UserChannelPermissions(i.Member.User.ID, i.ChannelID)
 
 	if err != nil {
-		log.Printf("err while checking permission of %v (%v) in %v (%v) for wc_settings: %v", i.User.Username, i.User.ID, utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, err)
+		log.Printf("err while checking permission of %v (%v) in %v (%v) for wc_settings: %v", i.Member.User.Username, i.Member.User.ID, utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, err)
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -195,7 +184,7 @@ func (sc *StoreCtx) WelcomeCommandHandler(s *discordgo.Session, i *discordgo.Int
 	case "enable":
 		cur, err := sc.gs.ToggleWelcomeMessage(i.GuildID)
 		if err != nil {
-			log.Printf("err while toggling WelcomeSettings.Enable of in %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.User.Username, i.User.ID, err)
+			log.Printf("err while toggling WelcomeSettings.Enable of in %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.Member.User.Username, i.Member.User.ID, err)
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
@@ -220,14 +209,73 @@ func (sc *StoreCtx) WelcomeCommandHandler(s *discordgo.Session, i *discordgo.Int
 		})
 
 		return
-	case "settings":
-		for _, opt := range options[0].Options {
-			switch opt.Name {
-			case "channel":
-				ch := opt.Options[0].ChannelValue(s)
-				err := sc.gs.SetWelcomeChannel(i.GuildID, ch.ID)
+	case "channel":
+		ch := options[0].Options[0].ChannelValue(s)
+		err := sc.gs.SetWelcomeChannel(i.GuildID, ch.ID)
+		if err != nil {
+			log.Printf("err while setting WelcomeSettings.ChannelID of in %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.Member.User.Username, i.Member.User.ID, err)
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Error!",
+				},
+			})
+			return
+		}
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf("Welcome message channel has been set to <#%v>", ch.ID),
+			},
+		})
+		return
+	case "message":
+		msg := options[0].Options[0].StringValue()
+		err := sc.gs.SetWelcomeMessage(i.GuildID, msg)
+		if err != nil {
+			log.Printf("err while setting WelcomeSettings.Message of in %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.Member.User.Username, i.Member.User.ID, err)
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Error!",
+				},
+			})
+			return
+		}
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf("Welcome message has been set to:\n\n%v", msg),
+			},
+		})
+		return
+	case "include_image":
+		inc := options[0].Options[0].BoolValue()
+		err := sc.gs.SetWelcomeIncludeImage(i.GuildID, inc)
+		if err != nil {
+			log.Printf("err while setting WelcomeSettings.IncludeImage of in %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.Member.User.Username, i.Member.User.ID, err)
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Error!",
+				},
+			})
+			return
+		}
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf("Welcome message image inclusion has been set to `%v`", inc),
+			},
+		})
+		return
+	case "textcolor":
+		for _, sOpt := range options[0].Options {
+			switch sOpt.Name {
+			case "get":
+				tc, err := sc.gs.GetWelcomeTextColor(i.GuildID)
 				if err != nil {
-					log.Printf("err while setting WelcomeSettings.ChannelID of in %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.User.Username, i.User.ID, err)
+					log.Printf("err while getting WelcomeSettings.TextColor of in %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.Member.User.Username, i.Member.User.ID, err)
 					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 						Type: discordgo.InteractionResponseChannelMessageWithSource,
 						Data: &discordgo.InteractionResponseData{
@@ -239,257 +287,241 @@ func (sc *StoreCtx) WelcomeCommandHandler(s *discordgo.Session, i *discordgo.Int
 				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 					Type: discordgo.InteractionResponseChannelMessageWithSource,
 					Data: &discordgo.InteractionResponseData{
-						Content: fmt.Sprintf("Welcome message channel has been set to <#%v>", ch.ID),
+						Content: fmt.Sprintf("Current Welcome Image Text Color of `%v` is `%v`", utils.GetGuildNameFromState(s, i.GuildID), tc),
 					},
 				})
 				return
-			case "message":
-				msg := opt.Options[0].StringValue()
-				err := sc.gs.SetWelcomeMessage(i.GuildID, msg)
-				if err != nil {
-					log.Printf("err while setting WelcomeSettings.Message of in %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.User.Username, i.User.ID, err)
-					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-						Type: discordgo.InteractionResponseChannelMessageWithSource,
-						Data: &discordgo.InteractionResponseData{
-							Content: "Error!",
-						},
-					})
+			case "set":
+				color := sOpt.GetOption("value").StringValue()
+
+				if color == "" {
 					return
 				}
-				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Content: fmt.Sprintf("Welcome message has been set to:\n\n%v", msg),
-					},
-				})
-				return
-			case "include_image":
-				inc := opt.Options[0].BoolValue()
-				err := sc.gs.SetWelcomeIncludeImage(i.GuildID, inc)
+
+				err := sc.gs.SetWelcomeTextColor(i.GuildID, color)
+
 				if err != nil {
-					log.Printf("err while setting WelcomeSettings.IncludeImage of in %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.User.Username, i.User.ID, err)
-					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-						Type: discordgo.InteractionResponseChannelMessageWithSource,
-						Data: &discordgo.InteractionResponseData{
-							Content: "Error!",
-						},
-					})
-					return
-				}
-				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Content: fmt.Sprintf("Welcome message image inclusion has been set to `%v`", inc),
-					},
-				})
-				return
-			case "textcolor":
-				for _, sOpt := range opt.Options {
-					switch sOpt.Name {
-					case "get":
-						tc, err := sc.gs.GetWelcomeTextColor(i.GuildID)
-						if err != nil {
-							log.Printf("err while getting WelcomeSettings.TextColor of in %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.User.Username, i.User.ID, err)
-							s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-								Type: discordgo.InteractionResponseChannelMessageWithSource,
-								Data: &discordgo.InteractionResponseData{
-									Content: "Error!",
-								},
-							})
-							return
-						}
+					if err.Error() == "invalid hex color string" {
 						s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 							Type: discordgo.InteractionResponseChannelMessageWithSource,
 							Data: &discordgo.InteractionResponseData{
-								Content: fmt.Sprintf("Current Welcome Image Text Color of `%v` is `%v`", utils.GetGuildNameFromState(s, i.GuildID), tc),
+								Content: "Invalid color option! You must use valid HEX color string.",
 							},
 						})
-						return
-					case "set":
-						color := sOpt.GetOption("value").StringValue()
-
-						if color == "" {
-							return
-						}
-
-						err := sc.gs.SetWelcomeTextColor(i.GuildID, color)
-
-						if err != nil {
-							if err.Error() == "invalid hex color string" {
-								s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-									Type: discordgo.InteractionResponseChannelMessageWithSource,
-									Data: &discordgo.InteractionResponseData{
-										Content: "Invalid color option! You must use valid HEX color string.",
-									},
-								})
-							} else {
-								log.Printf("err while setting WelcomeSettings.TextColor of in %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.User.Username, i.User.ID, err)
-								s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-									Type: discordgo.InteractionResponseChannelMessageWithSource,
-									Data: &discordgo.InteractionResponseData{
-										Content: "Error!",
-									},
-								})
-
-							}
-							return
-						}
+					} else {
+						log.Printf("err while setting WelcomeSettings.TextColor of in %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.Member.User.Username, i.Member.User.ID, err)
 						s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 							Type: discordgo.InteractionResponseChannelMessageWithSource,
 							Data: &discordgo.InteractionResponseData{
-								Content: fmt.Sprintf("Welcome Image Text Color of `%v` has been set to `%v`", utils.GetGuildNameFromState(s, i.GuildID), color),
+								Content: "Error!",
 							},
 						})
-						return
+
 					}
+					return
 				}
-			case "background":
-				for _, subOpt := range opt.Options {
-					switch subOpt.Name {
-					case "get":
-						img, err := sc.gs.GetCurrentWelcomeImageBackground(i.GuildID)
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: fmt.Sprintf("Welcome Image Text Color of `%v` has been set to `%v`", utils.GetGuildNameFromState(s, i.GuildID), color),
+					},
+				})
+				return
+			}
+		}
+	case "background":
+		for _, subOpt := range options[0].Options {
+			switch subOpt.Name {
+			case "get":
+				img, err := sc.gs.GetCurrentWelcomeImageBackground(i.GuildID)
 
-						if err != nil {
-							log.Printf("err while getting WelcomeSettings.CustomImage of %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.User.Username, i.User.ID, err)
-							s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-								Type: discordgo.InteractionResponseChannelMessageWithSource,
-								Data: &discordgo.InteractionResponseData{
-									Content: "Error!",
-								},
-							})
-							return
-						}
+				if err != nil {
+					log.Printf("err while getting WelcomeSettings.CustomImage of %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.Member.User.Username, i.Member.User.ID, err)
+					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: "Error!",
+						},
+					})
+					return
+				}
 
-						if img == "" {
-							s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-								Type: discordgo.InteractionResponseChannelMessageWithSource,
-								Data: &discordgo.InteractionResponseData{
-									Content: "There's no custom background image set.",
-								},
-							})
-							return
-						}
+				if img == "" {
+					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: "There's no custom background image set.",
+						},
+					})
+					return
+				}
 
-						st, err := utils.NewS3Client()
+				st, err := utils.NewS3Client()
 
-						if err != nil {
-							log.Printf("err while getting custom image from s3 for %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.User.Username, i.User.ID, err)
-							s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-								Type: discordgo.InteractionResponseChannelMessageWithSource,
-								Data: &discordgo.InteractionResponseData{
-									Content: "Error getting image from storage.",
-								},
-							})
-							return
-						}
+				if err != nil {
+					log.Printf("err while getting custom image from s3 for %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.Member.User.Username, i.Member.User.ID, err)
+					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: "Error getting image from storage.",
+						},
+					})
+					return
+				}
 
-						s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-							Type: discordgo.InteractionResponseChannelMessageWithSource,
-							Data: &discordgo.InteractionResponseData{
-								Embeds: []*discordgo.MessageEmbed{
-									{
-										Title: fmt.Sprintf("Current custom image for welcome message of `%v`", utils.GetGuildNameFromState(s, i.GuildID)),
-										Image: &discordgo.MessageEmbedImage{
-											URL: st.GetFileUrl(img),
-										},
-									},
+				body, err := st.DownloadFile(context.Background(), img)
+				if err != nil {
+					log.Printf("err while downloading custom background from s3 for %v (%v) by %v (%v) for wc_settings: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.Member.User.Username, i.Member.User.ID, err)
+					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: "Error downloading image from storage.",
+						},
+					})
+					return
+				}
+				defer body.Close()
+
+				filename := "background" + path.Ext(img)
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Embeds: []*discordgo.MessageEmbed{
+							{
+								Title: fmt.Sprintf("Current custom image for welcome message of `%v`", utils.GetGuildNameFromState(s, i.GuildID)),
+								Image: &discordgo.MessageEmbedImage{
+									URL: "attachment://" + filename,
 								},
 							},
-						})
-					case "set":
-						st, err := utils.NewS3Client()
-						if err != nil {
-							log.Printf("err while setting up s3 client for %v (%v) by %v (%v) for wc_settings background: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.User.Username, i.User.ID, err)
-							s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-								Type: discordgo.InteractionResponseChannelMessageWithSource,
-								Data: &discordgo.InteractionResponseData{
-									Content: "Storage service unavailable.",
-								},
-							})
-							return
-						}
-
-						for _, subSubOpt := range subOpt.Options {
-							switch subSubOpt.Name {
-							case "image":
-								attID := subSubOpt.GetOption("img").Value.(string)
-								att := i.ApplicationCommandData().Resolved.Attachments[attID]
-
-								resp, err := http.Get(att.URL)
-								if err != nil {
-									s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-										Type: discordgo.InteractionResponseChannelMessageWithSource,
-										Data: &discordgo.InteractionResponseData{
-											Content: "Failed to download the attachment.",
-										},
-									})
-									return
-								}
-								defer resp.Body.Close()
-
-								key := fmt.Sprintf("welcome_bg/%s%s", i.GuildID, path.Ext(att.Filename))
-								_, err = st.UploadFile(context.Background(), key, resp.Body, resp.Header.Get("Content-Type"))
-								if err != nil {
-									log.Printf("err while uploading background image for %v (%v): %v", i.GuildID, i.User.ID, err)
-									s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-										Type: discordgo.InteractionResponseChannelMessageWithSource,
-										Data: &discordgo.InteractionResponseData{
-											Content: "Error uploading image to storage.",
-										},
-									})
-									return
-								}
-
-								sc.gs.SetWelcomeCustomBackground(i.GuildID, key)
-								s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-									Type: discordgo.InteractionResponseChannelMessageWithSource,
-									Data: &discordgo.InteractionResponseData{
-										Content: "Welcome background image updated successfully!",
-									},
-								})
-
-							case "imagelink":
-								link := subSubOpt.GetOption("link").StringValue()
-								resp, err := http.Get(link)
-								if err != nil {
-									s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-										Type: discordgo.InteractionResponseChannelMessageWithSource,
-										Data: &discordgo.InteractionResponseData{
-											Content: "Failed to access the image link.",
-										},
-									})
-									return
-								}
-								defer resp.Body.Close()
-
-								key := fmt.Sprintf("welcome_bg/%s%s", i.GuildID, path.Ext(link))
-								if path.Ext(link) == "" {
-									key += ".png" // default extension if missing
-								}
-
-								_, err = st.UploadFile(context.Background(), key, resp.Body, resp.Header.Get("Content-Type"))
-								if err != nil {
-									log.Printf("err while uploading background link for %v (%v): %v", i.GuildID, i.User.ID, err)
-									s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-										Type: discordgo.InteractionResponseChannelMessageWithSource,
-										Data: &discordgo.InteractionResponseData{
-											Content: "Error uploading image to storage.",
-										},
-									})
-									return
-								}
-
-								sc.gs.SetWelcomeCustomBackground(i.GuildID, key)
-								s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-									Type: discordgo.InteractionResponseChannelMessageWithSource,
-									Data: &discordgo.InteractionResponseData{
-										Content: "Welcome background image updated successfully!",
-									},
-								})
-							}
-						}
-					}
+						},
+						Files: []*discordgo.File{
+							{
+								Name:   filename,
+								Reader: body,
+							},
+						},
+					},
+				})
+			case "set-image":
+				st, err := utils.NewS3Client()
+				if err != nil {
+					log.Printf("err while setting up s3 client for %v (%v) by %v (%v) for wc_settings background: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.Member.User.Username, i.Member.User.ID, err)
+					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: "Storage service unavailable.",
+						},
+					})
+					return
 				}
+
+				attID := subOpt.GetOption("img").Value.(string)
+				att := i.ApplicationCommandData().Resolved.Attachments[attID]
+
+				resp, err := http.Get(att.URL)
+				if err != nil {
+					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: "Failed to download the attachment.",
+						},
+					})
+					return
+				}
+				data, err := io.ReadAll(resp.Body)
+				if err != nil {
+					log.Printf("err while reading background body for %v (%v): %v", i.GuildID, i.Member.User.ID, err)
+					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: "Error processing the image.",
+						},
+					})
+					return
+				}
+				resp.Body.Close()
+
+				key := fmt.Sprintf("welcome_bg/%s%s", i.GuildID, path.Ext(att.Filename))
+				_, err = st.UploadFile(context.Background(), key, bytes.NewReader(data), resp.Header.Get("Content-Type"))
+				if err != nil {
+					log.Printf("err while uploading background image for %v (%v): %v", i.GuildID, i.Member.User.ID, err)
+					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: "Error uploading image to storage.",
+						},
+					})
+					return
+				}
+
+				sc.gs.SetWelcomeCustomBackground(i.GuildID, key)
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Welcome background image updated successfully!",
+					},
+				})
+			case "set-link":
+				st, err := utils.NewS3Client()
+				if err != nil {
+					log.Printf("err while setting up s3 client for %v (%v) by %v (%v) for wc_settings background: %v", utils.GetGuildNameFromState(s, i.GuildID), i.GuildID, i.Member.User.Username, i.Member.User.ID, err)
+					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: "Storage service unavailable.",
+						},
+					})
+					return
+				}
+
+				link := subOpt.GetOption("link").StringValue()
+				resp, err := http.Get(link)
+				if err != nil {
+					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: "Failed to access the image link.",
+						},
+					})
+					return
+				}
+				data, err := io.ReadAll(resp.Body)
+				if err != nil {
+					log.Printf("err while reading background body for %v (%v): %v", i.GuildID, i.Member.User.ID, err)
+					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: "Error processing the image.",
+						},
+					})
+					return
+				}
+				resp.Body.Close()
+
+				key := fmt.Sprintf("welcome_bg/%s%s", i.GuildID, path.Ext(link))
+				if path.Ext(link) == "" {
+					key += ".png" // default extension if missing
+				}
+
+				_, err = st.UploadFile(context.Background(), key, bytes.NewReader(data), resp.Header.Get("Content-Type"))
+				if err != nil {
+					log.Printf("err while uploading background link for %v (%v): %v", i.GuildID, i.Member.User.ID, err)
+					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: "Error uploading image to storage.",
+						},
+					})
+					return
+				}
+
+				sc.gs.SetWelcomeCustomBackground(i.GuildID, key)
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Welcome background image updated successfully!",
+					},
+				})
 			}
 		}
 	}
