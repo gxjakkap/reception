@@ -27,7 +27,11 @@ import (
 
 func (c *EventContext) MessageReactionAdd(s *discordgo.Session, m *discordgo.MessageReactionAdd) {
 	// ignore dms, for now.
-	if m.Member == nil {
+	if m.Member == nil || m.Member.User == nil {
+		return
+	}
+
+	if m.Member.User.ID == s.State.User.ID {
 		return
 	}
 
