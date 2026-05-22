@@ -150,7 +150,7 @@ func (sc *StoreCtx) MessageAsCommandHandler(s *discordgo.Session, i *discordgo.I
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf("You are sending message to <#%v>. Type your message in chat or type `_cancel` to cancel.\n\nThis interaction will expire in 5 minutes.", i.ApplicationCommandData().Options[0].StringValue()),
+			Content: fmt.Sprintf("You are sending message to <#%v>. Type your message in chat or type `_cancel` to cancel.\n\nThis interaction will expire in 5 minutes.", channel.ID),
 		},
 	})
 }
