@@ -254,6 +254,40 @@ func (s *GuildsStore) ListGuildCategoryTemplates(gid string) ([]models.CategoryT
 
 	return sett.CategoryTemplate, nil
 }
+
+func (s *GuildsStore) RemoveGuildCategoryTemplate(gid string, idx int) (*models.CategoryTemplate, error) {
+	var g models.Guilds
+	err := s.db.Where("id = ?", gid).First(&g).Error
+	if err != nil {
+		return nil, err
+	}
+
+	var sett models.GuildSettings
+	err = json.Unmarshal(g.Settings, &sett)
+	if err != nil {
+		return nil, err
+	}
+
+	if idx < 0 || idx >= len(sett.CategoryTemplate) {
+		return nil, fmt.Errorf("index %d out of range (len=%d)", idx, len(sett.CategoryTemplate))
+	}
+
+	removed := sett.CategoryTemplate[idx]
+	sett.CategoryTemplate = append(sett.CategoryTemplate[:idx], sett.CategoryTemplate[idx+1:]...)
+
+	gsb, err := json.Marshal(sett)
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.db.Model(&models.Guilds{ID: gid}).Update("settings", gsb).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &removed, nil
+}
+
 func (s *GuildsStore) SetWelcomeChannel(gid string, cid string) error {
 	gs, err := s.GetSettings(gid)
 	if err != nil {
@@ -316,4 +350,8 @@ func (s *GuildsStore) SetWelcomeCustomBackground(gid string, url string) error {
 	}
 
 	return s.db.Model(&models.Guilds{ID: gid}).Update("settings", gsb).Error
+}
+
+func (s *GuildsStore) CleanupDeletedReactionRolesMessage(mid string) error {
+	return s.db.Where("message_id = ?", mid).Delete(&models.ReactionRoles{}).Error
 }
