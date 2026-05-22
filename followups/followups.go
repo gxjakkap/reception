@@ -25,4 +25,5 @@ var FollowUps = map[string]*FollowUp{
 	RRAddRolesOrFinish.Name:     RRAddRolesOrFinish,
 	RRSetEmbedMessage.Name:      RRSetEmbedMessage,
 	CCTAddChannelsOrFinish.Name: CCTAddChannelsOrFinish,
+	MsgaSetMessage.Name:         MsgaSetMessage,
 }

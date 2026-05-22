@@ -39,6 +39,7 @@ func (c *StoreCtx) GetHandlers() map[string]func(s *discordgo.Session, i *discor
 		TempC.Name:         c.TempCCommandHandler,
 		CreateCTemp.Name:   c.CreateCTempCommandHandler,
 		ListCTemp.Name:     c.ListCTempCommandHandler,
+		MessageAs.Name:     c.MessageAsCommandHandler,
 	}
 }
 
@@ -49,4 +50,5 @@ var Infos = []*discordgo.ApplicationCommand{
 	TempC,
 	CreateCTemp,
 	ListCTemp,
+	MessageAs,
 }
