@@ -16,6 +16,7 @@ package followups
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -63,7 +64,7 @@ func (c *FollowUpsCtx) SetEmbedMessage(s *discordgo.Session, m *discordgo.Messag
 	}
 
 	rep := &discordgo.MessageSend{
-		Content:   "I have sent the message you provided to <#%v>.\n\nNext, please input each role and corresponding discord emoji by mentioning a role followed by the emoji. e.g.:\n'@role' :book:\nWhen finished, type `end`.",
+		Content:   fmt.Sprintf("I have sent the message you provided to <#%v>.\n\nNext, please input each role and corresponding discord emoji by mentioning a role followed by the emoji. e.g.:\n'@role' :book:\nWhen finished, type `end`.", data.ChannelID),
 		Reference: m.MessageReference,
 	}
 
