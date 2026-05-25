@@ -31,6 +31,8 @@ import (
 	"github.com/gxjakkap/reception/utils"
 )
 
+var welcomePerm int64 = discordgo.PermissionManageGuild
+
 var Welcome = &discordgo.ApplicationCommand{
 	Name:        "welcome",
 	Description: "Set up welcome message.",
@@ -143,6 +145,7 @@ var Welcome = &discordgo.ApplicationCommand{
 			},
 		},
 	},
+	DefaultMemberPermissions: &welcomePerm,
 }
 
 func (sc *StoreCtx) WelcomeCommandHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {

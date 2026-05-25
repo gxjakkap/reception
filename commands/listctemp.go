@@ -26,9 +26,12 @@ import (
 	"github.com/gxjakkap/reception/utils"
 )
 
+var listCTempPerm int64 = discordgo.PermissionManageGuild
+
 var ListCTemp = &discordgo.ApplicationCommand{
-	Name:        "listctemp",
-	Description: "List category template for this server",
+	Name:                     "listctemp",
+	Description:              "List category template for this server",
+	DefaultMemberPermissions: &listCTempPerm,
 }
 
 func (sc *StoreCtx) ListCTempCommandHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {

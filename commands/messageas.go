@@ -29,6 +29,8 @@ import (
 	"github.com/gxjakkap/reception/utils"
 )
 
+var messageAsPerm int64 = discordgo.PermissionManageGuild
+
 var MessageAs = &discordgo.ApplicationCommand{
 	Name:        "messageas",
 	Description: "Send message as bot",
@@ -40,6 +42,7 @@ var MessageAs = &discordgo.ApplicationCommand{
 			Required:    true,
 		},
 	},
+	DefaultMemberPermissions: &messageAsPerm,
 }
 
 type MessageAsInitData struct {

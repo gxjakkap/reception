@@ -29,6 +29,8 @@ import (
 	"github.com/gxjakkap/reception/utils"
 )
 
+var createCTempPerm int64 = discordgo.PermissionManageGuild
+
 var CreateCTemp = &discordgo.ApplicationCommand{
 	Name:        "createctemp",
 	Description: "Create new category template",
@@ -40,6 +42,7 @@ var CreateCTemp = &discordgo.ApplicationCommand{
 			Required:    true,
 		},
 	},
+	DefaultMemberPermissions: &createCTempPerm,
 }
 
 type CCTInitData struct {

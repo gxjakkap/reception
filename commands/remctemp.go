@@ -26,6 +26,8 @@ import (
 	"github.com/gxjakkap/reception/utils"
 )
 
+var remCTempPerm int64 = discordgo.PermissionManageGuild
+
 var RemCTemp = &discordgo.ApplicationCommand{
 	Name:        "remctemp",
 	Description: "Remove category template",
@@ -37,6 +39,7 @@ var RemCTemp = &discordgo.ApplicationCommand{
 			Required:    true,
 		},
 	},
+	DefaultMemberPermissions: &remCTempPerm,
 }
 
 type RCTInitData struct {

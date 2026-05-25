@@ -29,6 +29,8 @@ type RRInitPendingData struct {
 	ChannelID string `json:"channel_id"`
 }
 
+var reactionRolesPerm int64 = discordgo.PermissionManageGuild
+
 var ReactionRoles = &discordgo.ApplicationCommand{
 	Name:        "reactionroles",
 	Description: "Set up reaction roles.",
@@ -43,6 +45,7 @@ var ReactionRoles = &discordgo.ApplicationCommand{
 			},
 		},
 	},
+	DefaultMemberPermissions: &reactionRolesPerm,
 }
 
 func (sc *StoreCtx) ReactionRolesCommandHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {

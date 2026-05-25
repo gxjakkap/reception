@@ -26,6 +26,8 @@ import (
 	"github.com/gxjakkap/reception/utils"
 )
 
+var tempCPerm int64 = discordgo.PermissionManageGuild
+
 var TempC = &discordgo.ApplicationCommand{
 	Name:        "tempc",
 	Description: "Create new category with predefined channels",
@@ -42,6 +44,7 @@ var TempC = &discordgo.ApplicationCommand{
 			Description: "Index of the category template to use. (Default to 0 if not specified)",
 		},
 	},
+	DefaultMemberPermissions: &tempCPerm,
 }
 
 func (sc *StoreCtx) TempCCommandHandler(s *discordgo.Session, i *discordgo.InteractionCreate) {
